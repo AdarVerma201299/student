@@ -2,18 +2,9 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
-
 const app = express();
-
-// Connect Database
 connectDB();
-
-// Middleware
-const allowedOrigins = [
-  "http://localhost:3000", // Your local frontend
-  "https://student-1-r27d.onrender.com", // Your production frontend (if different)
-  // Add other origins as needed
-];
+const allowedOrigins = ["https://student-1-r27d.onrender.com"];
 app.use(
   cors({
     origin: allowedOrigins,
@@ -29,11 +20,8 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Credentials", "true");
   next();
 });
-
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/student", require("./routes/studentRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
-
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
