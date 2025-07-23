@@ -4,11 +4,14 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const app = express();
 connectDB();
+
 const allowedOrigins = [
   "https://student-1-r27d.onrender.com",
   "http://student-1-vqir.onrender.com",
   "http://localhost:3000",
+  "https://student-30a2.onrender.com", // Added backend URL
 ];
+
 app.use(
   cors({
     origin: allowedOrigins,
@@ -19,13 +22,22 @@ app.use(
     optionsSuccessStatus: 204,
   })
 );
+
+// Handle preflight requests
+app.options("*", cors());
+
 app.use(express.json());
+
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Credentials", "true");
+  console.log("Incoming request:", req.method, req.url);
+  console.log("Origin:", req.headers.origin);
   next();
 });
+
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/student", require("./routes/studentRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
