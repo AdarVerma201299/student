@@ -4,7 +4,11 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const app = express();
 connectDB();
-const allowedOrigins = ["https://student-1-r27d.onrender.com"];
+const allowedOrigins = [
+  "https://student-1-r27d.onrender.com",
+  "http://student-1-vqir.onrender.com",
+  "http://localhost:3000",
+];
 app.use(
   cors({
     origin: allowedOrigins,
