@@ -40,7 +40,7 @@ export const signInAction = createAsyncThunk(
 
 // SignUp Thunk
 export const signUpAction = createAsyncThunk(
-  "auth/signUp",
+  "auth/signup",
   async ({ formData, userType }, { rejectWithValue }) => {
     try {
       localStorage.removeItem("profile");
