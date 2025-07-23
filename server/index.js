@@ -10,30 +10,35 @@ connectDB();
 
 const allowedOrigins = [
   "https://student-1-r27d.onrender.com",
-  "http://student-1-vqir.onrender.com",
+  "https://student-1-vqir.onrender.com",
   "http://localhost:3000",
   "https://student-30a2.onrender.com", // Added backend URL
 ];
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    exposedHeaders: ["Set-Cookie", "Authorization"],
-    optionsSuccessStatus: 204,
-  })
-);
-// app.options("*", (req, res) => {
-//   res.sendStatus(204);
-// });
+const corsOptions = {
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  exposedHeaders: ["Set-Cookie", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+app.use(cors(corsOptions));
+// app.options("*", cors(corsOptions));
 app.use(express.json());
-// app.use((req, res, next) => {
-//   res.header("Access-Control-Allow-Credentials", "true");
-//   console.log(`Incoming route: ${req.method} ${req.path}`);
-//   next();
-// });
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
 app.use("/api/auth", authRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/admin", adminRoutes);
