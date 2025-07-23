@@ -29,11 +29,11 @@ app.use(
 //   res.sendStatus(204);
 // });
 app.use(express.json());
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Credentials", "true");
-  console.log(`Incoming route: ${req.method} ${req.path}`);
-  next();
-});
+// app.use((req, res, next) => {
+//   res.header("Access-Control-Allow-Credentials", "true");
+//   console.log(`Incoming route: ${req.method} ${req.path}`);
+//   next();
+// });
 app.use("/api/auth", authRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/admin", adminRoutes);
