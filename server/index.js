@@ -11,7 +11,7 @@ connectDB();
 // Middleware
 const allowedOrigins = [
   "http://localhost:3000", // Your local frontend
-  "https://student-1-r27d.onrender.com/", // Your production frontend (if different)
+  "https://student-1-r27d.onrender.com", // Your production frontend (if different)
   // Add other origins as needed
 ];
 app.use(
