@@ -326,13 +326,9 @@ module.exports = {
   },
   getDashboardStats: async (req, res) => {
     try {
-      // 1. Total Students Count
       const totalStudents = await Student.countDocuments();
-
-      // 2. Recent Payments (last 7 days)
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
       const recentPayments = await Payment.countDocuments({
         paymentDate: { $gte: oneWeekAgo },
       });

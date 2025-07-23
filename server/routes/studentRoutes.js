@@ -19,7 +19,7 @@ const { loginLimiter } = require("../utils/loginLimiter");
 
 // Student SignUp
 router.post(
-  "/SignUp",
+  "/signup",
   upload.fields([
     { name: "profileImage", maxCount: 1 },
     { name: "frontAadhaar", maxCount: 1 },

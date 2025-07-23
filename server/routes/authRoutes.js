@@ -6,7 +6,7 @@ const {
   getStudents,
 } = require("../controllers/authController");
 
-router.get("/student", verifyToken, getStudentData);
+router.get("/student/:id", verifyToken, getStudentData);
 router.get(
   "/students",
   verifyToken,
