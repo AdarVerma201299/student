@@ -1,36 +1,33 @@
 import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
-  // fetchStudentShiftFees,
   createShiftFee,
   updateShiftFee,
-  // fetchShiftFeeSummary,
 } from "../../../redux/actions/adminActions";
 import { hasAdminRole } from "../../../utils/helpers";
 import {
-  // PencilSquare,
+  PencilSquare,
   PlusCircle,
   // CashCoin,
   // Calendar,
-  // CheckCircle,
-  // ExclamationCircle,
-  // XCircle,
+  CheckCircle,
+  ExclamationCircle,
+  XCircle,
 } from "react-bootstrap-icons";
 // import {
-//   ArrowUpCircleIcon,
-//   ArrowDownCircleIcon,
+// ArrowUpCircleIcon,
+// ArrowDownCircleIcon,
 // } from "@heroicons/react/24/outline";
 
 const ShiftFeeManagement = ({ studentId, Active, onSubmitSuccess }) => {
   const dispatch = useDispatch();
-  // const { shiftFees, summary, loading } = useSelector(
-  //   (state) => state.shiftFee
-  // );
+  const { feeRecords } = useSelector((state) => state.student);
   const [formData, setFormData] = useState({
     shift: "MORNING",
     fee: "",
     isActive: true,
   });
+  console.log("asd", feeRecords, studentId);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState({ Active });
   const [currentFee, setCurrentFee] = useState(null);
@@ -38,15 +35,6 @@ const ShiftFeeManagement = ({ studentId, Active, onSubmitSuccess }) => {
     new Date().getFullYear() + "-" + (new Date().getFullYear() + 1)
   );
   const isAdmin = hasAdminRole();
-
-  // useEffect(() => {
-  //   if (studentId) {
-  //     dispatch(fetchStudentShiftFees(studentId, yearFilter));
-  //   }
-  //   if (isAdmin) {
-  //     dispatch(fetchShiftFeeSummary({ year: yearFilter }));
-  //   }
-  // }, [studentId, yearFilter, isAdmin, dispatch]);
 
   const handleCreate = () => {
     setFormData({
@@ -59,16 +47,16 @@ const ShiftFeeManagement = ({ studentId, Active, onSubmitSuccess }) => {
     setShowModal(true);
   };
 
-  // const handleEdit = (fee) => {
-  //   setFormData({
-  //     shift: fee.shift,
-  //     fee: fee.fee,
-  //     isActive: fee.isActive,
-  //   });
-  //   setEditMode(true);
-  //   // setCurrentFee(fee);
-  //   // setShowModal(true);
-  // };
+  const handleEdit = (fee) => {
+    setFormData({
+      shift: fee.shift,
+      fee: fee.fee,
+      isActive: fee.isActive,
+    });
+    setEditMode(true);
+    // setCurrentFee(fee);
+    // setShowModal(true);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -104,29 +92,29 @@ const ShiftFeeManagement = ({ studentId, Active, onSubmitSuccess }) => {
     }));
   };
 
-  // const getShiftColor = (shift) => {
-  //   switch (shift) {
-  //     case "MORNING":
-  //       return "bg-blue-100 text-blue-800";
-  //     case "AFTERNOON":
-  //       return "bg-orange-100 text-orange-800";
-  //     case "EVENING":
-  //       return "bg-purple-100 text-purple-800";
-  //     default:
-  //       return "bg-gray-100 text-gray-800";
-  //   }
-  // };
+  const getShiftColor = (shift) => {
+    switch (shift) {
+      case "MORNING":
+        return "bg-blue-100 text-blue-800";
+      case "AFTERNOON":
+        return "bg-orange-100 text-orange-800";
+      case "EVENING":
+        return "bg-purple-100 text-purple-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
 
-  // const getStatusIcon = (status) => {
-  //   switch (status) {
-  //     case "PAID":
-  //       return <CheckCircle className="text-green-500 mr-1" />;
-  //     case "PARTIAL":
-  //       return <ExclamationCircle className="text-yellow-500 mr-1" />;
-  //     default:
-  //       return <XCircle className="text-red-500 mr-1" />;
-  //   }
-  // };
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "PAID":
+        return <CheckCircle className="text-green-500 mr-1" />;
+      case "PARTIAL":
+        return <ExclamationCircle className="text-yellow-500 mr-1" />;
+      default:
+        return <XCircle className="text-red-500 mr-1" />;
+    }
+  };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
@@ -156,9 +144,9 @@ const ShiftFeeManagement = ({ studentId, Active, onSubmitSuccess }) => {
         </div>
       </div>
 
-      {/* {isAdmin && summary?.length > 0 && (
+      {/* {isAdmin && feeRecords?.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {summary.map((item) => (
+          {feeRecords.map((item) => (
             <div
               key={item._id}
               className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 shadow"
@@ -175,7 +163,7 @@ const ShiftFeeManagement = ({ studentId, Active, onSubmitSuccess }) => {
               <div className="flex items-end justify-between">
                 <div>
                   <p className="text-2xl font-bold dark:text-white">
-                    ₹{item.totalFees.toFixed(2)}
+                    ₹{item.totalFees}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {item.totalStudents} students
@@ -184,13 +172,11 @@ const ShiftFeeManagement = ({ studentId, Active, onSubmitSuccess }) => {
                 <div className="text-right">
                   <div className="flex items-center text-green-500 dark:text-green-400">
                     <ArrowUpCircleIcon className="h-5 w-5 mr-1" />
-                    <span>₹{item.paidFees?.toFixed(2) || 0}</span>
+                    <span>₹{item.paidFees || 0}</span>
                   </div>
                   <div className="flex items-center text-red-500 dark:text-red-400">
                     <ArrowDownCircleIcon className="h-5 w-5 mr-1" />
-                    <span>
-                      ₹{(item.totalFees - item.paidFees)?.toFixed(2) || 0}
-                    </span>
+                    <span>₹{item.totalFees - item.paidFees || 0}</span>
                   </div>
                 </div>
               </div>
@@ -226,7 +212,7 @@ const ShiftFeeManagement = ({ studentId, Active, onSubmitSuccess }) => {
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {/* {shiftFees?.map((fee) => (
+            {feeRecords?.map((fee) => (
               <tr
                 key={fee._id}
                 className="hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -270,7 +256,7 @@ const ShiftFeeManagement = ({ studentId, Active, onSubmitSuccess }) => {
                   </td>
                 )}
               </tr>
-            ))} */}
+            ))}
           </tbody>
         </table>
       </div>

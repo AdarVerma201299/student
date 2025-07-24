@@ -4,29 +4,16 @@ import {
   fetchStudentData,
   removeStudent,
 } from "../actions/studentActions";
-// Helper functions (unchanged)
-const calculateLastPaymentDate = (payments = []) => {
-  if (!payments.length) return null;
-  const [latestPayment] = [...payments].sort(
-    (a, b) => new Date(b.date) - new Date(a.date)
-  );
-  return latestPayment.date;
-};
-
-const calculatePendingMonths = (enrollmentDate, payments = []) => {
-  if (!enrollmentDate) return 0;
-  const enrollment = new Date(enrollmentDate);
-  const now = new Date();
-  const totalMonths =
-    (now.getFullYear() - enrollment.getFullYear()) * 12 +
-    (now.getMonth() - enrollment.getMonth()) +
-    1;
-  return Math.max(0, totalMonths - payments.length);
-};
+import { fetchStudentShiftFees } from "../actions/adminActions";
+import {
+  calculateLastPaymentDate,
+  calculatePendingMonths,
+} from "../../utils/helpers";
 
 const initialState = {
   studentData: null,
   feeRecords: [],
+  feeSummary: [],
   paymentHistory: [],
   loading: false,
   error: null,
@@ -39,11 +26,10 @@ const studentSlice = createSlice({
   name: "student",
   initialState,
   reducers: {
-    // Keep your existing synchronous reducers
     fetchStudentSuccess: (state, { payload }) => {
       state.studentData = payload.studentData;
       state.feeRecords = payload.feeRecords || [];
-      state.paymentHistory = payload.paymentHistory || [];
+      state.paymentHistory = payload.payments || [];
       state.lastPaymentDate = calculateLastPaymentDate(state.paymentHistory);
       state.pendingMonths = calculatePendingMonths(
         payload.studentData?.createdAt,
@@ -58,8 +44,9 @@ const studentSlice = createSlice({
     resetStudentState: () => initialState,
   },
   extraReducers: (builder) => {
-    // Payment Processing
+    // Single builder chain for all cases
     builder
+      // Payment Processing
       .addCase(processStudentPayment.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -77,10 +64,9 @@ const studentSlice = createSlice({
       .addCase(processStudentPayment.rejected, (state, { payload }) => {
         state.loading = false;
         state.error = payload;
-      });
+      })
 
-    // Fetch Student Data
-    builder
+      // Fetch Student Data
       .addCase(fetchStudentData.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -99,10 +85,9 @@ const studentSlice = createSlice({
       .addCase(fetchStudentData.rejected, (state, { payload }) => {
         state.loading = false;
         state.error = payload;
-      });
+      })
 
-    // Remove Student
-    builder
+      // Remove Student
       .addCase(removeStudent.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -111,19 +96,33 @@ const studentSlice = createSlice({
       .addCase(removeStudent.rejected, (state, { payload }) => {
         state.loading = false;
         state.error = payload;
-      });
+      })
 
-    // Persist rehydration
-    builder.addCase("persist/REHYDRATE", (state, action) => {
-      if (action.payload?.student) {
-        return {
-          ...state,
-          ...action.payload.student,
-          loading: false,
-          error: null,
-        };
-      }
-    });
+      // Fetch Student Shift Fees
+      .addCase(fetchStudentShiftFees.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchStudentShiftFees.fulfilled, (state, { payload }) => {
+        state.feeSummary = payload;
+        state.loading = false;
+      })
+      .addCase(fetchStudentShiftFees.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload;
+      })
+
+      // Persist rehydration
+      .addCase("persist/REHYDRATE", (state, action) => {
+        if (action.payload?.student) {
+          return {
+            ...state,
+            ...action.payload.student,
+            loading: false,
+            error: null,
+          };
+        }
+      });
   },
 });
 

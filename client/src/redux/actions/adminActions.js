@@ -59,21 +59,21 @@ export const deleteStudent = createAsyncThunk(
 );
 
 // Thunk actions
-export const fetchStudentShiftFees =
-  (studentId, academicYear) => async (dispatch) => {
+export const fetchStudentShiftFees = createAsyncThunk(
+  "student/fetchShiftFees",
+  async ({ studentId }, { rejectWithValue }) => {
     try {
-      const res = await API.get(
-        `/shift-fees/student/${studentId}?year=${academicYear}`
-      );
-      dispatch({
-        type: SET_SHIFT_FEES,
-        payload: res.data,
+      const response = await API.get("/shift-fees/student", {
+        params: { studentId },
       });
-    } catch (err) {
-      dispatch();
-      // setAlert(err.response?.data?.error || "Failed to fetch fees", "error")
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to fetch fees"
+      );
     }
-  };
+  }
+);
 
 export const createShiftFee = createAsyncThunk(
   "shiftFee/createShiftFee",
@@ -126,30 +126,38 @@ export const updateShiftFee = createAsyncThunk(
   }
 );
 
-export const fetchShiftFeeSummary = createAsyncThunk(
-  "shiftFee/fetchShiftFeeSummary",
-  async (filters, { getState, rejectWithValue }) => {
-    try {
-      const {
-        auth: { user },
-      } = getState();
+// export const fetchShiftFeeSummary = createAsyncThunk(
+//   "shiftFee/fetchShiftFeeSummary",
+//   async (filters, { getState, rejectWithValue }) => {
+//     try {
+//       const {
+//         auth: { user },
+//       } = getState();
 
-      if (
-        !user.roles?.includes("admin") &&
-        !user.roles?.includes("sub-admin")
-      ) {
-        return rejectWithValue("Unauthorized access");
-      }
+//       if (
+//         !user.roles?.includes("admin") &&
+//         !user.roles?.includes("sub-admin")
+//       ) {
+//         return rejectWithValue("Unauthorized access");
+//       }
 
-      const query = new URLSearchParams(filters).toString();
-      const response = await API.get(`/shift-fees/summary?${query}`);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response?.data || error.message);
-    }
-  }
-);
+//       const queryParams = new URLSearchParams();
+//       queryParams.append("year", filters.year);
 
+//       // Add studentId to query if it exists
+//       if (filters.studentId) {
+//         queryParams.append("studentId", filters.studentId);
+//       }
+
+//       const response = await API.get(
+//         `/shift-fees/summary?${queryParams.toString()}`
+//       );
+//       return response.data;
+//     } catch (error) {
+//       return rejectWithValue(error.response?.data || error.message);
+//     }
+//   }
+// );
 export const fetchDashboardData = async () => {
   try {
     const response = await API.get("admin/dashboard/stats");

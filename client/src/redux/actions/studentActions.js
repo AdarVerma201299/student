@@ -38,15 +38,7 @@ export const fetchStudentData = createAsyncThunk(
   async (id, { dispatch, rejectWithValue }) => {
     try {
       const response = await API.get("/auth/student", { params: { id } });
-
-      // if (response.status === 200 && response.data.status === "success") {
-      //   dispatch(
-      //     fetchStudentSuccess({
-      //       studentData: response.data.data,
-      //       feeRecords: response.data.data.feeRecords || [],
-      //       paymentHistory: response.data.data.payments || [],
-      //     })
-      //   );
+      console.log("ras:", response);
       return response.data.data;
       // }
       // throw new Error(response.data.message || "Failed to fetch student");

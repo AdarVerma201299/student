@@ -11,6 +11,7 @@ import ErrorMessage from "../../../Components/Common/ErrorMessage";
 import SuccessMessage from "../../../Components/Common/SuccessMessage";
 import LoadingSpinner from "../../../Components/Common/LoadingSpinner";
 import { DataSheetSkeleton } from "../../LoadingPage";
+
 const StudentManagement = () => {
   const dispatch = useDispatch();
   const { students, status, error } = useSelector((state) => state.admin);
@@ -66,9 +67,6 @@ const StudentManagement = () => {
         if (deleteStudent.fulfilled.match(result)) {
           setSuccessMessage("Student deleted successfully!");
           setTimeout(() => setSuccessMessage(""), 3000);
-
-          // Optional: Re-fetch students if needed
-          // await dispatch(fetchStudents());
         }
       } catch (err) {
         setLocalError(err.payload || "Failed to delete student");
@@ -79,9 +77,9 @@ const StudentManagement = () => {
   if (status === "loading" && students.length === 0) {
     return <DataSheetSkeleton />;
   }
-  // console.log(students);
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       {/* Error Message */}
       {localError && (
         <ErrorMessage message={localError} onClose={() => setLocalError("")} />
