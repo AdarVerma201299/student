@@ -2,7 +2,7 @@ import { API } from "./utils";
 
 export const signUp = async ({ formData, role }) => {
   try {
-    const res = await API.post(`/${role}/SignUp`, formData, {
+    const res = await API.post(`/${role}/signup`, formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

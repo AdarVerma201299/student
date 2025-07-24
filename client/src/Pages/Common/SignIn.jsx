@@ -55,7 +55,7 @@ function SignIn() {
       };
 
       const res = await dispatch(signInAction(credentials));
-      console.log("res ", res);
+
       if (res) navigate("/");
     } catch (error) {
       console.error("Login failed:", error);

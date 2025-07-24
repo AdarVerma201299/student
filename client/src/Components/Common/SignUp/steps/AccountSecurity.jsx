@@ -81,7 +81,6 @@ export const AccountSecurity = ({ formData, setFormData, prevStep }) => {
       formDataToSend.append("designation", formData.designation);
       formDataToSend.append("department", formData.department);
     }
-    console.log("formData", formData);
 
     try {
       await dispatch(

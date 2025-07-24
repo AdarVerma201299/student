@@ -9,7 +9,6 @@ const RequireAuth = ({ children, allowedRoles = [] }) => {
   if (user === null) {
     return <LoadingSpinner />;
   }
-  console.log("isAuthenticated", user.isAuthenticated);
   if (!user.isAuthenticated) {
     return <Navigate to="/signin/admin" state={{ from: location }} replace />;
   }

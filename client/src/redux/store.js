@@ -40,22 +40,22 @@ export const store = configureStore({
 });
 export const persistor = persistStore(store);
 
-const checkPersistedData = () => {
-  const rawData = localStorage.getItem("persist:root");
-  if (rawData) {
-    try {
-      const parsed = JSON.parse(rawData);
-      console.log("Parsed localStorage data:", parsed);
-      if (parsed.auth) {
-        console.log("Auth slice:", JSON.parse(parsed.auth)); // Should now show auth data
-        console.log("Student slice:", JSON.parse(parsed.student)); // Should now show auth data
-        console.log("Admin slice:", JSON.parse(parsed.admin)); // Should now show auth data
-      }
-    } catch (e) {
-      console.error("Parsing error:", e);
-    }
-  } else {
-    console.log("No data in persist:root");
-  }
-};
-checkPersistedData();
+// const checkPersistedData = () => {
+//   const rawData = localStorage.getItem("persist:root");
+//   if (rawData) {
+//     try {
+//       const parsed = JSON.parse(rawData);
+//       console.log("Parsed localStorage data:", parsed);
+//       if (parsed.auth) {
+//         console.log("Auth slice:", JSON.parse(parsed.auth)); // Should now show auth data
+//         console.log("Student slice:", JSON.parse(parsed.student)); // Should now show auth data
+//         console.log("Admin slice:", JSON.parse(parsed.admin)); // Should now show auth data
+//       }
+//     } catch (e) {
+//       console.error("Parsing error:", e);
+//     }
+//   } else {
+//     console.log("No data in persist:root");
+//   }
+// };
+// checkPersistedData();
