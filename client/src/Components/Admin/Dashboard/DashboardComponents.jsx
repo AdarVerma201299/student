@@ -2,12 +2,17 @@ import { ArrowTrendingUpIcon } from "@heroicons/react/24/outline";
 
 export const Card = ({ title, children, className = "" }) => {
   return (
-    <div className={`bg-white rounded-lg shadow p-6 ${className}`}>
-      {title && <h3 className="font-semibold text-lg mb-4">{title}</h3>}
+    <div className={`bg-white rounded-lg shadow p-4 md:p-6 ${className}`}>
+      {title && (
+        <h3 className="font-semibold text-base md:text-lg mb-3 md:mb-4">
+          {title}
+        </h3>
+      )}
       {children}
     </div>
   );
 };
+
 export const StatCard = ({
   title,
   value,
@@ -26,26 +31,28 @@ export const StatCard = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-white rounded-lg shadow p-4 md:p-6">
       <div className="flex justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="text-2xl font-bold mt-1">{value}</p>
+          <p className="text-xs md:text-sm font-medium text-gray-500">
+            {title}
+          </p>
+          <p className="text-xl md:text-2xl font-bold mt-1">{value}</p>
         </div>
         <div
-          className={`h-12 w-12 rounded-full flex items-center justify-center ${colorClasses[color]}`}
+          className={`h-10 w-10 md:h-12 md:w-12 rounded-full flex items-center justify-center ${colorClasses[color]}`}
         >
           {icon}
         </div>
       </div>
       {change && (
         <p
-          className={`mt-2 text-sm ${
+          className={`mt-1 md:mt-2 text-xs md:text-sm ${
             change.startsWith("+") ? "text-green-600" : "text-red-600"
           }`}
         >
           <ArrowTrendingUpIcon
-            className={`inline h-4 w-4 ${
+            className={`inline h-3 w-3 md:h-4 md:w-4 ${
               change.startsWith("+") ? "text-green-500" : "text-red-500"
             }`}
           />
@@ -81,12 +88,14 @@ export const ActivityFeed = () => {
 
   return (
     <Card title="Recent Activity">
-      <ul className="space-y-4">
+      <ul className="space-y-3 md:space-y-4">
         {activities.map((activity) => (
           <li key={activity.id} className="flex items-start">
             <div className="flex-shrink-0 h-2 w-2 mt-2 rounded-full bg-blue-500"></div>
             <div className="ml-3">
-              <p className="text-sm font-medium">{activity.action}</p>
+              <p className="text-xs md:text-sm font-medium">
+                {activity.action}
+              </p>
               <p className="text-xs text-gray-500">
                 {activity.user} • {activity.time}
               </p>
