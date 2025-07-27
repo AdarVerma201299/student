@@ -1,60 +1,43 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import {
   CreditCard,
   ClockHistory,
-  CheckCircleFill,
+  // CheckCircleFill,
   ExclamationTriangleFill,
   InfoCircleFill,
 } from "react-bootstrap-icons";
 import PaymentForm from "../../../Components/Student/Payment/PaymentForm";
 import PaymentHistory from "../../../Components/Common/Payment/PaymentHistory";
 import PaymentSummary from "../../../Components/Common/Payment/PaymentSummary";
-import {
-  getShiftFees,
-  createPayment,
-} from "../../../redux/actions/paymentActions";
+import { createPayment } from "../../../redux/actions/paymentActions";
 import LoadingSpinner from "../../../Components/Common/LoadingSpinner";
 
 const Payment = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
-  const paymentState = useSelector((state) => state.payment) || {
-    shiftFees: [],
-    loading: false,
-    error: null,
-    successMessage: null,
-  };
-
+  // const navigate = useNavigate();
   const {
-    shiftFees = [],
-    loading = false,
-    error = null,
-    successMessage = null,
-  } = paymentState;
+    studentData,
+    feeRecords,
+    paymentHistory,
+    // pendingMonths,
+    loading,
+    error,
+  } = useSelector((state) => state.student);
+
   const [activeTab, setActiveTab] = useState("make-payment");
   const [selectedFee, setSelectedFee] = useState(null);
 
-  useEffect(() => {
-    if (user?.role !== "student") {
-      navigate("/dashboard");
-    } else {
-      dispatch(getShiftFees(user._id));
-    }
-  }, [user, navigate, dispatch]);
-
   const handlePaymentSubmit = async (paymentData) => {
     try {
-      await dispatch(
+      dispatch(
         createPayment({
-          ...paymentData,
-          student: user._id,
+          paymentData, // The actual payment data
+          studentId: studentData._id,
           academicYear: selectedFee?.academicYear,
         })
       );
-      dispatch(getShiftFees(user._id));
     } catch (err) {
       console.error("Payment failed:", err);
     }
@@ -83,7 +66,7 @@ const Payment = () => {
           </div>
         )}
 
-        {successMessage && (
+        {/* {successMessage && (
           <div className="flex items-center bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded">
             <CheckCircleFill className="mr-3" size={20} />
             <div>
@@ -91,7 +74,7 @@ const Payment = () => {
               <p>{successMessage}</p>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Tab Navigation */}
         <div className="flex border-b border-gray-200 mb-8">
@@ -137,7 +120,7 @@ const Payment = () => {
             <div className="lg:col-span-1">
               <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 sticky top-4">
                 <PaymentSummary
-                  shiftFees={shiftFees}
+                  shiftFees={feeRecords}
                   onSelectFee={setSelectedFee}
                   selectedFee={selectedFee}
                 />
@@ -146,7 +129,7 @@ const Payment = () => {
           </div>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200">
-            <PaymentHistory />
+            <PaymentHistory payments={paymentHistory} />
           </div>
         )}
       </div>

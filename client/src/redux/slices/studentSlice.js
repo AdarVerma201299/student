@@ -4,7 +4,8 @@ import {
   fetchStudentData,
   removeStudent,
 } from "../actions/studentActions";
-import { fetchStudentShiftFees } from "../actions/adminActions";
+import { createShiftFee, updateShiftFee } from "../actions/adminActions";
+import { createPayment } from "../actions/paymentActions";
 import {
   calculateLastPaymentDate,
   calculatePendingMonths,
@@ -13,7 +14,6 @@ import {
 const initialState = {
   studentData: null,
   feeRecords: [],
-  feeSummary: [],
   paymentHistory: [],
   loading: false,
   error: null,
@@ -99,15 +99,40 @@ const studentSlice = createSlice({
       })
 
       // Fetch Student Shift Fees
-      .addCase(fetchStudentShiftFees.pending, (state) => {
+      .addCase(createShiftFee.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchStudentShiftFees.fulfilled, (state, { payload }) => {
-        state.feeSummary = payload;
+      .addCase(createShiftFee.fulfilled, (state, { payload }) => {
+        state.feeRecords = [...(state.feeRecords || []), payload.data];
         state.loading = false;
       })
-      .addCase(fetchStudentShiftFees.rejected, (state, { payload }) => {
+      .addCase(createShiftFee.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload;
+      })
+      // Fetch Student Shift Fees
+      .addCase(updateShiftFee.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateShiftFee.fulfilled, (state, { payload }) => {
+        state.feeRecords = [...(state.feeRecords || []), payload.data];
+        state.loading = false;
+      })
+      .addCase(updateShiftFee.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload;
+      })
+      .addCase(createPayment.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createPayment.fulfilled, (state, { payload }) => {
+        state.loading = false;
+        state.paymentHistory = [...(state.paymentHistory || []), payload];
+      })
+      .addCase(createPayment.rejected, (state, { payload }) => {
         state.loading = false;
         state.error = payload;
       })

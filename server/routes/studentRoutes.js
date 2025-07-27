@@ -92,19 +92,6 @@ router.post(
 );
 
 // Student MakePayment
-router.post(
-  "/MakePayment",
-  verifyToken,
-  authorizeRole(["student"]),
-  [
-    body("amount").isNumeric().withMessage("Amount must be a number"),
-    body("paymentMethod")
-      .isIn(["cash", "card", "upi", "netbanking"])
-      .withMessage("Invalid payment method"),
-    body("transactionId").optional().isString(),
-  ],
-  makePayment
-);
 
 // Student ChatWithAdmin
 // router.post(

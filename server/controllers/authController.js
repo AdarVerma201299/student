@@ -1,61 +1,127 @@
 const { User, Student } = require("../models/User");
 const Payment = require("../models/Payment");
 const ShiftFee = require("../models/ShiftFee");
+const AuditLog = require("../models/AuditLog");
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
-const { calculatePaymentStatus } = require("../utils/helper");
+const {
+  calculatePaymentStatus,
+  calculateTotalPaid,
+} = require("../utils/helper");
 module.exports = {
   getStudents: async (req, res) => {
     try {
-      const students = await Student.find()
-        .sort({ createdAt: -1 })
-        .select("-__v -password -refreshToken -loginHistory")
-        .lean();
-      const validStudentIds = students
-        .map((s) => s._id)
-        .filter((id) => mongoose.Types.ObjectId.isValid(id));
-      if (validStudentIds.length !== students.length) {
-        console.warn("Some invalid student IDs were filtered out");
-      }
-      const allFeeRecords = await ShiftFee.find({
-        student: { $in: validStudentIds },
-      })
-        .populate({
-          path: "payments",
-          select: "amount date method receiptNumber verified",
-        })
-        .lean();
-      // Group fee records by student
-      const feeRecordsByStudent = allFeeRecords.reduce((acc, record) => {
-        const studentId = record.student.toString();
-        if (!acc[studentId]) {
-          acc[studentId] = [];
-        }
-        acc[studentId].push(record);
-        return acc;
-      }, {});
-
-      // Enrich each student with their fee records
-      const enrichedStudents = students.map((student) => {
-        const feeRecords = feeRecordsByStudent[student._id.toString()] || [];
-
-        return {
-          ...student,
-          feeRecords: feeRecords.map((record) => ({
-            ...record,
-            balance:
-              record.fee -
-              (record.payments?.reduce((sum, p) => sum + p.amount, 0) || 0),
-            status: calculatePaymentStatus(record.fee, record.payments || []),
-          })),
-          paymentHistory: feeRecords.flatMap((record) => record.payments || []),
-        };
-      });
-
+      const students = await Student.aggregate([
+        { $sort: { createdAt: -1 } },
+        { $match: { role: "student" } }, // Ensure only students
+        {
+          $project: {
+            __v: 0,
+            password: 0,
+            refreshToken: 0,
+            loginHistory: 0,
+            "aadhar._id": 0,
+            "address.residential._id": 0,
+            "address.permanent._id": 0,
+          },
+        },
+        {
+          $lookup: {
+            from: "shiftfees",
+            localField: "_id",
+            foreignField: "student",
+            as: "feeRecords",
+            pipeline: [
+              { $match: { isActive: true } }, // Only active fee records
+              {
+                $lookup: {
+                  from: "payments",
+                  localField: "payments",
+                  foreignField: "_id",
+                  as: "payments",
+                  pipeline: [
+                    { $sort: { date: -1 } }, // Sort payments by date
+                    {
+                      $project: {
+                        _id: 1,
+                        amount: 1,
+                        date: 1,
+                        method: 1,
+                        receiptNumber: 1,
+                        verified: 1,
+                        academicYear: 1,
+                      },
+                    },
+                  ],
+                },
+              },
+              {
+                $addFields: {
+                  totalPaid: { $sum: "$payments.amount" },
+                  balance: {
+                    $subtract: ["$fee", { $sum: "$payments.amount" }],
+                  },
+                },
+              },
+              {
+                $addFields: {
+                  status: {
+                    $switch: {
+                      branches: [
+                        { case: { $eq: ["$balance", 0] }, then: "PAID" },
+                        {
+                          case: { $lt: ["$balance", "$fee"] },
+                          then: "PARTIAL",
+                        },
+                      ],
+                      default: "UNPAID",
+                    },
+                  },
+                },
+              },
+              {
+                $project: {
+                  payments: 1,
+                  shift: 1,
+                  fee: 1,
+                  academicYear: 1,
+                  totalPaid: 1,
+                  balance: 1,
+                  status: 1,
+                  createdAt: 1,
+                },
+              },
+            ],
+          },
+        },
+        {
+          $addFields: {
+            totalFees: { $sum: "$feeRecords.fee" },
+            totalPaid: { $sum: "$feeRecords.totalPaid" },
+            overallBalance: { $sum: "$feeRecords.balance" },
+            paymentHistory: {
+              $reduce: {
+                input: "$feeRecords.payments",
+                initialValue: [],
+                in: { $concatArrays: ["$$value", "$$this"] },
+              },
+            },
+          },
+        },
+        { $sort: { name: 1 } }, // Sort students alphabetically
+      ]);
+      const finalData = students.map((student) => ({
+        ...student,
+        feeRecords: student.feeRecords || [],
+        paymentHistory: student.paymentHistory || [],
+        totalFees: student.totalFees || 0,
+        totalPaid: student.totalPaid || 0,
+        overallBalance: student.overallBalance || 0,
+      }));
       res.status(200).json({
         success: true,
-        count: enrichedStudents.length,
-        data: enrichedStudents,
+        count: finalData.length,
+        data: finalData,
       });
     } catch (err) {
       res.status(500).json({
@@ -67,43 +133,145 @@ module.exports = {
   getStudentData: async (req, res) => {
     try {
       const { id } = req.query;
-      const student = await Student.findById(id)
-        .select("-password -refreshToken -__v -updatedAt -loginHistory")
-        .lean();
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          status: "fail",
+          message: "Invalid student ID format",
+        });
+      }
+      console.log(req.query);
+      const result = await Student.aggregate([
+        {
+          $match: {
+            _id: new mongoose.Types.ObjectId(id),
+            role: "student",
+          },
+        },
+        {
+          $project: {
+            // Explicitly include only the fields you want
+            name: 1,
+            email: 1,
+            phone: 1,
+            gender: 1,
+            fatherName: 1,
+            school: 1,
+            dob: 1,
+            aadhar: 1,
+            address: 1,
+            isPermanentSame: 1,
+            profileImage: 1,
+            isActive: 1,
+            createdAt: 1,
+            // Omit sensitive fields by not including them
+            // All other fields will be excluded automatically
+          },
+        },
+        {
+          $lookup: {
+            from: "shiftfees",
+            localField: "_id",
+            foreignField: "student",
+            as: "feeRecords",
+            pipeline: [
+              { $match: { isActive: true } },
+              {
+                $lookup: {
+                  from: "payments",
+                  localField: "payments",
+                  foreignField: "_id",
+                  as: "payments",
+                  pipeline: [
+                    { $sort: { date: -1 } },
+                    {
+                      $project: {
+                        amount: 1,
+                        date: 1,
+                        method: 1,
+                        receiptNumber: 1,
+                        verified: 1,
+                        academicYear: 1,
+                      },
+                    },
+                  ],
+                },
+              },
+              {
+                $addFields: {
+                  payments: { $ifNull: ["$payments", []] },
+                  totalPaid: { $sum: "$payments.amount" },
+                  balance: {
+                    $subtract: ["$fee", { $sum: "$payments.amount" }],
+                  },
+                },
+              },
+              {
+                $addFields: {
+                  status: {
+                    $switch: {
+                      branches: [
+                        { case: { $eq: ["$balance", 0] }, then: "PAID" },
+                        {
+                          case: { $lt: ["$balance", "$fee"] },
+                          then: "PARTIAL",
+                        },
+                      ],
+                      default: "UNPAID",
+                    },
+                  },
+                },
+              },
+              {
+                $project: {
+                  payments: 1,
+                  shift: 1,
+                  fee: 1,
+                  academicYear: 1,
+                  totalPaid: 1,
+                  balance: 1,
+                  status: 1,
+                  createdAt: 1,
+                },
+              },
+            ],
+          },
+        },
+        {
+          $addFields: {
+            feeRecords: { $ifNull: ["$feeRecords", []] },
+            totalFees: { $sum: "$feeRecords.fee" },
+            totalPaid: { $sum: "$feeRecords.totalPaid" },
+            overallBalance: { $sum: "$feeRecords.balance" },
+            paymentHistory: {
+              $reduce: {
+                input: "$feeRecords.payments",
+                initialValue: [],
+                in: { $concatArrays: ["$$value", "$$this"] },
+              },
+            },
+          },
+        },
+      ]);
 
-      if (!student) {
+      if (result.length === 0) {
         return res.status(404).json({
           status: "fail",
           message: "Student not found",
         });
       }
 
-      const feeRecords = await ShiftFee.find({ student: req.params.id })
-        .populate({
-          path: "payments",
-          select: "amount date method receiptNumber verified",
-        })
-        .lean();
+      const studentData = result[0];
 
-      const payments = await Payment.find({
-        student: req.params.id,
-        shiftFee: { $in: feeRecords.map((fee) => fee._id) }, // Match payments for any of the fee records
-      }).lean();
-
-      console.log(feeRecords, payments);
+      // Ensure all array fields exist even if empty
+      const finalData = {
+        ...studentData,
+        feeRecords: studentData.feeRecords || [],
+        paymentHistory: studentData.paymentHistory || [],
+      };
+      console.log("qweq:", finalData);
       res.status(200).json({
         status: "success",
-        data: {
-          ...student,
-          payments,
-          feeRecords: feeRecords.map((record) => ({
-            ...record,
-            balance:
-              record.fee -
-              record.payments.reduce((sum, p) => sum + p.amount, 0),
-            status: calculatePaymentStatus(record.fee, record.payments),
-          })),
-        },
+        data: finalData,
       });
     } catch (err) {
       res.status(500).json({
@@ -112,7 +280,6 @@ module.exports = {
       });
     }
   },
-
   getStudentShiftFees: async (req, res) => {
     try {
       const { studentId } = req.params;
@@ -245,6 +412,279 @@ module.exports = {
       res
         .status(500)
         .json({ error: "Server error while fetching shift fee summary" });
+    }
+  },
+  // makePayment: async (req, res) => {
+  //   const session = await mongoose.startSession();
+  //   session.startTransaction();
+  //   try {
+  //     const { amount, method, transactionId, academicYear, notes } = req.body;
+  //     const { studentId } = req.query;
+  //     const payerRole = req.user.role;
+  //     console.log(
+  //       "req.body:",
+  //       req.body,
+  //       "req.query:",
+  //       req.query,
+  //       "req.user.role:",
+  //       req.user.role
+  //     );
+  //     // 1. Validate Payment Data
+  //     if (!amount || !method) {
+  //       return res.status(400).json({
+  //         success: false,
+  //         error: "Amount and payment method are required",
+  //       });
+  //     }
+
+  //     // 2. Validate Student Status
+  //     const student = await User.findById(studentId).session(session);
+  //     if (!student || student.role !== "student") {
+  //       await session.abortTransaction();
+  //       return res.status(404).json({
+  //         success: false,
+  //         error: "Student not found",
+  //       });
+  //     }
+
+  //     // 3. Role-based permissions
+  //     if (studentId && !["admin", "sub-admin"].includes(payerRole)) {
+  //       await session.abortTransaction();
+  //       return res.status(403).json({
+  //         success: false,
+  //         error: "Unauthorized to make payments for other students",
+  //       });
+  //     }
+
+  //     // 4. Get/Create Shift Fee Record
+  //     const year = academicYear || getCurrentAcademicYear();
+  //     let shiftFee = await ShiftFee.findOne({
+  //       student: studentId,
+  //       academicYear: year,
+  //     }).session(session);
+  //     if (shiftFee && shiftFee.payments.length >= 12) {
+  //       await session.abortTransaction();
+  //       return res.status(400).json({
+  //         success: false,
+  //         error:
+  //           "Maximum of 12 payments already reached for this academic year",
+  //       });
+  //     }
+  //     // 5. Create payment record with role-specific data
+  //     const paymentData = {
+  //       student: studentId,
+  //       shiftFee: shiftFee._id,
+  //       amount,
+  //       method,
+  //       transactionId,
+  //       academicYear: shiftFee.academicYear,
+  //       notes,
+  //       payerRole,
+  //       status: "pending",
+  //       verifiedBy: ["admin", "sub-admin"].includes(payerRole)
+  //         ? req.user.id
+  //         : null,
+  //       paymentSource:
+  //         payerRole === "student" ? "student-portal" : "admin-portal",
+  //     };
+  //     const payment = await Payment.create([paymentData], { session });
+  //     console.log(paymentData);
+  //     // 6. Update shift fee
+  //     // shiftFee.payments.push(payment[0]._id);
+  //     // await shiftFee.save({ session });
+
+  //     // 7. Payment verification (simplified for example)
+  //     if (["admin", "sub-admin"].includes(payerRole)) {
+  //       payment[0].status = "verified";
+  //       await payment[0].save({ session });
+  //     }
+
+  //     // 8. Calculate balance
+  //     const balance =
+  //       shiftFee.fee - (await calculateTotalPaid(shiftFee._id, session));
+
+  //     // 9. Create audit log
+  //     await createAuditLog({
+  //       action: "payment",
+  //       model: "Payment",
+  //       documentId: payment[0]._id,
+  //       changedBy: req.user.id,
+  //       changes: paymentData,
+  //       ipAddress: req.ip,
+  //       userAgent: req.headers["user-agent"],
+  //     });
+
+  //     // 10. Commit transaction
+  //     await session.commitTransaction();
+
+  //     // 11. Send notifications
+  //     // if (payerRole !== "student") {
+  //     //   // await sendPaymentNotification(student.email, payment[0]._id);
+  //     // }
+
+  //     res.status(201).json({
+  //       success: true,
+  //       data: {
+  //         paymentId: payment[0]._id,
+  //         amountPaid: amount,
+  //         currentBalance: balance,
+  //         receiptUrl: `/receipts/${payment[0]._id}`,
+  //         status: payment[0].status,
+  //         payerRole,
+  //       },
+  //     });
+  //   } catch (error) {
+  //     await session.abortTransaction();
+  //     console.error("Payment error:", error);
+
+  //     const statusCode = error.name === "ValidationError" ? 400 : 500;
+  //     res.status(statusCode).json({
+  //       success: false,
+  //       error: error.message || "Payment processing failed",
+  //     });
+  //   } finally {
+  //     session.endSession();
+  //   }
+  // },
+  makePayment: async (req, res) => {
+    const session = await mongoose.startSession();
+    let transactionCompleted = false;
+
+    try {
+      await session.withTransaction(async () => {
+        // 1. Get request data
+        const { amount, method, transactionId, academicYear, notes } = req.body;
+        const { studentId } = req.query;
+        const payerRole = req.user.role;
+
+        // 2. Validate required fields
+        if (!amount || !method) {
+          throw new Error("Amount and payment method are required");
+        }
+
+        // 3. Get academic year
+        const year = academicYear || getCurrentAcademicYear();
+
+        // 4. Find shift fee record
+        const shiftFee = await ShiftFee.findOne({
+          student: studentId,
+          academicYear: year,
+        }).session(session);
+
+        if (!shiftFee) {
+          throw new Error("Shift fee record not found");
+        }
+
+        // 5. Validate payment limit
+        if (shiftFee.payments && shiftFee.payments.length >= 12) {
+          throw new Error("Maximum of 12 payments already reached");
+        }
+
+        // 6. Create payment record
+        const payment = await Payment.create(
+          [
+            {
+              student: studentId,
+              shiftFee: shiftFee._id,
+              amount: parseFloat(amount),
+              method,
+              transactionId,
+              academicYear: year,
+              notes,
+              payerRole,
+              status: ["admin", "sub-admin"].includes(payerRole)
+                ? "verified"
+                : "pending",
+              verifiedBy: ["admin", "sub-admin"].includes(payerRole)
+                ? req.user.id
+                : null,
+              paymentSource:
+                payerRole === "student" ? "student-portal" : "admin-portal",
+            },
+          ],
+          { session }
+        );
+
+        // 7. Update shift fee with atomic operation
+        const updatedShiftFee = await ShiftFee.findOneAndUpdate(
+          {
+            _id: shiftFee._id,
+            payments: {
+              $size: shiftFee.payments ? shiftFee.payments.length : 0,
+            },
+          },
+          {
+            $push: { payments: payment[0]._id },
+          },
+          {
+            new: true,
+            session,
+          }
+        );
+
+        if (!updatedShiftFee) {
+          throw new Error("Payment conflict occurred - please try again");
+        }
+
+        // 8. Calculate balance
+        const totalPaid = await calculateTotalPaid(shiftFee._id, session);
+        const balance = parseFloat(shiftFee.fee) - parseFloat(totalPaid);
+
+        // 9. Create audit log
+        await AuditLog.create(
+          [
+            {
+              action: "payment",
+              model: "Payment",
+              documentId: payment[0]._id,
+              changedBy: req.user.id,
+              changes: {
+                amount: payment[0].amount,
+                method: payment[0].method,
+                transactionId: payment[0].transactionId,
+              },
+              ipAddress: req.ip,
+              userAgent: req.headers["user-agent"],
+            },
+          ],
+          { session }
+        );
+
+        transactionCompleted = true;
+      });
+
+      // Only reach here if transaction succeeded
+      res.status(201).json({
+        success: true,
+        data: {
+          paymentId: payment[0]._id,
+          amountPaid: payment[0].amount,
+          currentBalance: balance,
+          receiptUrl: `/receipts/${payment[0]._id}`,
+          status: payment[0].status,
+          payerRole,
+        },
+      });
+    } catch (error) {
+      if (!transactionCompleted && session.inTransaction()) {
+        await session.abortTransaction();
+      }
+
+      console.error("Payment error:", error);
+      const statusCode = error.message.includes("required")
+        ? 400
+        : error.message.includes("not found")
+        ? 404
+        : error.message.includes("Maximum")
+        ? 400
+        : 500;
+
+      res.status(statusCode).json({
+        success: false,
+        error: error.message || "Payment processing failed",
+      });
+    } finally {
+      await session.endSession();
     }
   },
 };

@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 const Student = require("../models/User");
 const ShiftFee = require("../models/ShiftFee");
 const Payment = require("../models/Payment");
-
+const mongoose = require("mongoose");
 /*
  * Calculate total verified payments for a shift fee record
  * @param {Types.ObjectId} shiftFeeId - The shift fee record ID
@@ -172,7 +172,53 @@ async function processPayment(studentId, amount, method, userId, session) {
     throw new Error("Payment processing failed");
   }
 }
+async function runTransactionWithRetry(txnFunc, maxRetries = 3) {
+  let attempt = 0;
+  let lastError;
 
+  while (attempt < maxRetries) {
+    const session = await mongoose.startSession();
+
+    try {
+      session.startTransaction();
+      console.log(`Transaction attempt ${attempt + 1} started`);
+
+      const result = await txnFunc(session);
+      await session.commitTransaction();
+      return result;
+    } catch (error) {
+      console.log(`Transaction attempt ${attempt + 1} failed:`, error.message);
+
+      // Always abort transaction on error
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
+
+      lastError = error;
+
+      // Check if we should retry
+      const shouldRetry =
+        error.errorLabels?.includes("TransientTransactionError") ||
+        error.message.includes("Transaction") || // General transaction errors
+        error.code === 112 || // WriteConflict
+        attempt < maxRetries - 1;
+
+      if (shouldRetry) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 100 * Math.pow(2, attempt))
+        );
+        attempt++;
+        continue;
+      }
+
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  throw lastError;
+}
 module.exports = {
   calculateTotalPaid,
   getCurrentAcademicYear,
@@ -181,4 +227,5 @@ module.exports = {
   prepareStudentData,
   calculatePaymentStatus,
   parseAddress, // Exposed for testing
+  runTransactionWithRetry,
 };

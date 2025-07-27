@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 const { User, Student } = require("./User");
+const Payment = require("./Payment");
 const shiftFeeSchema = new Schema(
   {
     student: {
@@ -34,18 +35,22 @@ const shiftFeeSchema = new Schema(
       required: true,
       index: true,
     },
-    payments: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Payment",
-        validate: {
-          validator: function (paymentIds) {
-            return paymentIds.length <= 12; // Max 12 payments per academic year
+    payments: {
+      type: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: "Payment",
+        },
+      ],
+      validate: [
+        {
+          validator: function (paymentsArray) {
+            return paymentsArray.length <= 12;
           },
           message: "Maximum 12 payments allowed per academic year",
         },
-      },
-    ],
+      ],
+    },
     lastUpdatedBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -94,14 +99,22 @@ shiftFeeSchema.virtual("status").get(function () {
 });
 
 shiftFeeSchema.pre("save", async function (next) {
-  console.log("[Pre-save] Starting validation...");
   if (this.isModified("payments") && this.payments.length > 0) {
-    const actualPayments = await mongoose.model("Payment").countDocuments({
-      _id: { $in: this.payments },
-      student: this.student,
-    });
-    if (actualPayments !== this.payments.length) {
-      throw new Error("Some payments do not belong to this student");
+    try {
+      const Payment = mongoose.model("Payment");
+      const actualPayments = await Payment.countDocuments({
+        _id: { $in: this.payments },
+        student: this.student,
+      }).session(this.$session());
+      console.log(actualPayments, this.payments.length);
+      if (actualPayments !== this.payments.length) {
+        throw new Error("Some payments do not belong to this student");
+      }
+      if (this.payments.length > 12) {
+        throw new Error("Maximum 12 payments allowed per academic year");
+      }
+    } catch (error) {
+      return next(error);
     }
   }
   next();

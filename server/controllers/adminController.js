@@ -219,35 +219,42 @@ module.exports = {
       const { shift, fee, academicYear, isActive } = req.body;
       const { studentId } = req.query;
 
-      // 1. Create fee and update student in bulk
-      const [savedFee] = await Promise.all([
-        ShiftFee.create({
-          student: studentId,
-          shift: shift.toLowerCase(),
-          fee,
-          academicYear,
-          lastUpdatedBy: req.user.userId,
-        }),
+      // Validate student exists and is actually a student
+      const student = await Student.findById(studentId);
+      if (!student || student.role !== "student") {
+        return res.status(404).json({ error: "Student not found" });
+      }
 
-        User.findByIdAndUpdate(
-          studentId,
-          {
-            $addToSet: { feeRecords: new mongoose.Types.ObjectId() }, // Placeholder
-            ...(isActive !== undefined && { isActive }),
-          },
-          { new: true }
-        ),
-      ]);
-
-      // 2. Update with actual fee ID
-      await User.findByIdAndUpdate(studentId, {
-        $addToSet: { feeRecords: savedFee._id },
+      // Create the shift fee record
+      const savedFee = await ShiftFee.create({
+        student: studentId,
+        shift: shift.toLowerCase(),
+        fee,
+        academicYear,
+        isActive: isActive !== false, // default to true if not specified
+        lastUpdatedBy: req.user.userId,
       });
 
-      res.status(201).json(savedFee);
+      // Update the student's feeRecords with the actual fee ID
+      await Student.findByIdAndUpdate(
+        studentId,
+        {
+          $addToSet: { feeRecords: savedFee._id },
+          ...(isActive !== undefined && { isActive }),
+        },
+        { new: true }
+      );
+
+      res.status(201).json({
+        success: true,
+        data: savedFee,
+      });
     } catch (err) {
       console.error("Error:", err);
-      res.status(400).json({ error: err.message });
+      res.status(400).json({
+        success: false,
+        error: err.message,
+      });
     }
   },
   updateShiftFee: async (req, res) => {

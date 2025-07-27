@@ -23,9 +23,11 @@ const PaymentForm = ({ onSubmit, selectedFee, loading }) => {
       return;
     }
     onSubmit({
-      ...paymentData,
       amount: Number(paymentData.amount),
+      method: paymentData.method,
+      transactionId: paymentData.transactionId,
       shiftFee: selectedFee._id,
+      notes: paymentData.notes,
     });
   };
 
