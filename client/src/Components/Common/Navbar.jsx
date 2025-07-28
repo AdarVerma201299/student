@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { startInactivityTimer } from "../../inactivityTimer";
 import {
   List,
   House,
@@ -21,7 +22,8 @@ const Navbar = () => {
   const [expanded, setExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const { user } = useSelector((state) => state.auth);
-
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
@@ -36,7 +38,10 @@ const Navbar = () => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
+  useEffect(() => {
+    const cleanup = startInactivityTimer(dispatch, navigate);
+    return cleanup;
+  }, [dispatch, navigate]);
   const toggleNavbar = () => setExpanded(!expanded);
 
   const getUserDashboard = () => {

@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { LogoutHandler } from "../../utils/function";
-import { startInactivityTimer } from "../../inactivityTimer";
+
 import {
   Book,
   Clock,
@@ -9,7 +9,6 @@ import {
   Person as User,
   ShieldLock as Shield,
 } from "react-bootstrap-icons";
-import { useEffect } from "react";
 
 const Home = () => {
   const userType = "student";
@@ -26,10 +25,7 @@ const Home = () => {
     if (!user) return "/";
     return user?.role === "student" ? `/profile/${user.id}` : "/dashboard";
   };
-  useEffect(() => {
-    const cleanup = startInactivityTimer(dispatch, navigate);
-    return cleanup;
-  }, [dispatch, navigate]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-blue-900 text-white font-sans">
       {/* Adjusted padding for mobile */}
