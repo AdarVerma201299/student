@@ -7,7 +7,6 @@ export const createPayment = createAsyncThunk(
     // Receive the entire payload
     try {
       const { paymentData, studentId, academicYear } = payload;
-      console.log(payload);
       const response = await API.post(
         "/auth/makepayment",
         {

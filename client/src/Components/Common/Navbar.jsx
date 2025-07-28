@@ -7,6 +7,13 @@ import {
   PersonPlus,
   BoxArrowInRight,
   X,
+  FileEarmarkBarGraph,
+  CashStack,
+  PeopleFill,
+  GearFill,
+  ClipboardData,
+  CalendarCheck,
+  PersonBadge,
 } from "react-bootstrap-icons";
 import ProfileDropdown from "./ProfileDropdown";
 
@@ -35,6 +42,12 @@ const Navbar = () => {
   const getUserDashboard = () => {
     if (!user) return "/";
     return user?.role === "student" ? `/profile/${user.id}` : "/dashboard";
+  };
+  const getUserPayment = () => {
+    if (!user) return "/";
+    return user?.role === "student"
+      ? "/payment"
+      : `/student-management/${user.role}/${user.id}/payment`;
   };
 
   // Close navbar when clicking outside (mobile only)
@@ -95,7 +108,7 @@ const Navbar = () => {
               className="flex items-center p-3 rounded-lg hover:bg-gray-300 transition-colors"
               onClick={() => isMobile && setExpanded(false)}
             >
-              <House size={24} />
+              <House size={20} />
               {expanded && <span className="ml-3">Home</span>}
             </Link>
 
@@ -106,34 +119,69 @@ const Navbar = () => {
                   to={getUserDashboard()}
                   onClick={() => isMobile && setExpanded(false)}
                 >
-                  <House size={24} />
-                  {expanded && <span className="ml-3">Dashboard</span>}
+                  {user?.role === "student" ? (
+                    <PersonBadge size={20} />
+                  ) : (
+                    <ClipboardData size={20} />
+                  )}
+                  {expanded && (
+                    <span className="ml-3">
+                      {user?.role === "student" ? "Profile" : "Dashboard"}
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={getUserPayment()}
+                  className="flex items-center p-3 rounded-lg hover:bg-gray-300 transition-colors"
+                  onClick={() => isMobile && setExpanded(false)}
+                >
+                  <CashStack size={20} />
+                  {expanded && <span className="ml-3">Payment</span>}
                 </Link>
 
-                {user?.role === "admin" && expanded && (
-                  <div className="ml-8 space-y-1">
+                {user?.role === "admin" && (
+                  <>
                     <Link
-                      to="/shift-allotment"
-                      className="block p-2 rounded-lg hover:bg-gray-300 transition-colors"
+                      to={{
+                        pathname: `/student-management/${user.role}/${user.id}/shift-management`,
+                        state: { view: "shift" }, // Add view state to indicate shift management
+                      }}
+                      className="flex items-center p-3 rounded-lg hover:bg-gray-300 transition-colors"
                       onClick={() => isMobile && setExpanded(false)}
                     >
-                      Shift Allotment
+                      <CalendarCheck size={20} />
+                      {expanded && (
+                        <span className="ml-3">Shift Allotment</span>
+                      )}
                     </Link>
                     <Link
                       to="/reports"
-                      className="block p-2 rounded-lg hover:bg-gray-300 transition-colors"
+                      className="flex items-center p-3 rounded-lg hover:bg-gray-300 transition-colors"
                       onClick={() => isMobile && setExpanded(false)}
                     >
-                      Reports
+                      <FileEarmarkBarGraph size={20} />
+                      {expanded && <span className="ml-3">Reports</span>}
                     </Link>
+
                     <Link
                       to="/user-management"
-                      className="block p-2 rounded-lg hover:bg-gray-300 transition-colors"
+                      className="flex items-center p-3 rounded-lg hover:bg-gray-300 transition-colors"
                       onClick={() => isMobile && setExpanded(false)}
                     >
-                      User Management
+                      <PeopleFill size={20} />
+                      {expanded && (
+                        <span className="ml-3">User Management</span>
+                      )}
                     </Link>
-                  </div>
+                    <Link
+                      to="/settings"
+                      className="flex items-center p-3 rounded-lg hover:bg-gray-300 transition-colors"
+                      onClick={() => isMobile && setExpanded(false)}
+                    >
+                      <GearFill size={20} />
+                      {expanded && <span className="ml-3">Settings</span>}
+                    </Link>
+                  </>
                 )}
               </>
             )}
@@ -172,8 +220,6 @@ const Navbar = () => {
           </div>
         </div>
       </nav>
-
-      {/* Overlay for mobile (only shows when navbar is expanded on mobile) */}
       {isMobile && expanded && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-30"

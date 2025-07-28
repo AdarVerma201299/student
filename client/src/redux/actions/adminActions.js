@@ -15,7 +15,7 @@ export const fetchStudents = createAsyncThunk(
         params: { role, userId },
       });
 
-      console.log("API Response:", response.data);
+      // console.log("API Response:", response.data);
       return response.data;
     } catch (error) {
       console.error("API Error:", {

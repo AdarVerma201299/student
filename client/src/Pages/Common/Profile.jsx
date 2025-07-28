@@ -28,21 +28,15 @@ import {
   ProfileCard,
   ProfileDetailItem,
 } from "../../Components/Common/ProfileComponents";
-import ShiftFeeManagement from "../../Components/Admin/PaymentVerification/ShiftFeeManagement";
+import ShiftFeeManagement from "../../Components/Admin/StudentManagement/ShiftFeeManagement";
 
 const Profile = () => {
   const [showFeeModal, setShowFeeModal] = useState(false);
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const {
-    studentData,
-    feeRecords,
-    paymentHistory,
-    pendingMonths,
-    loading,
-    error,
-  } = useSelector((state) => state.student);
+  const { studentData, feeRecords, paymentHistory, loading, error } =
+    useSelector((state) => state.student);
 
   const [showAadharModal, setShowAadharModal] = useState(false);
   const [activeAddress, setActiveAddress] = useState(null);
@@ -102,6 +96,7 @@ const Profile = () => {
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error} />;
+  console.log("asszfbjsfbjadsblkasfj:", studentData?.profileImage);
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="max-w-7xl mx-auto">
@@ -200,10 +195,10 @@ const Profile = () => {
                     value={formatDate(studentData?.createdAt)}
                   />
                   <DetailRow label="Pending Fee">
-                    {pendingMonths > 0 && studentData.isActive ? (
+                    {studentData?.overallBalance > 0 && studentData.isActive ? (
                       <>
                         <span className="text-red-600 dark:text-red-400">
-                          {pendingMonths} Month(s)
+                          {studentData?.overallBalance} Rs
                         </span>
                         <Link
                           to="/payment"

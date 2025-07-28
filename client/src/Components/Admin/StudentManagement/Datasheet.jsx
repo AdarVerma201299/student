@@ -12,32 +12,51 @@ import {
 import { useDispatch } from "react-redux";
 import { fetchStudentSuccess } from "../../../redux/slices/studentSlice";
 
-const DataSheet = ({ students = [], onEdit, onDelete }) => {
+const DataSheet = ({ students = [], onEdit, onDelete, view }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Filter students based on search term (name or email)
+  const [title, settitle] = useState("Student Records");
+  // console.log(view);
   const filteredStudents = useMemo(() => {
-    if (!searchTerm) return students;
+    let result = [...students];
+    switch (view) {
+      case "shift-management":
+        result = result.filter((student) => !student.isActive);
+        settitle("Pending Authorization Students");
+        break;
+      case "payment":
+        result = result.filter((student) => student.overallBalance > 0);
+        settitle("Payment Collection Queue");
+        break;
+      case "all":
+      default:
+        // No additional filtering for 'all' view
+        break;
+    }
 
-    const term = searchTerm.toLowerCase();
-    return students.filter(
-      (student) =>
-        student.name.toLowerCase().includes(term) ||
-        student.email.toLowerCase().includes(term)
-    );
-  }, [students, searchTerm]);
+    // Then apply search filter if exists
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        (student) =>
+          student.name.toLowerCase().includes(term) ||
+          student.email.toLowerCase().includes(term) ||
+          student.studentId?.toLowerCase().includes(term)
+      );
+    }
+
+    return result;
+  }, [students, view, searchTerm]);
 
   const studentCount = filteredStudents?.length || 0;
-
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
       {/* Header with Search */}
       <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200">
-            Student Records
+            {title}
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
             Showing {studentCount} student{studentCount !== 1 ? "s" : ""}

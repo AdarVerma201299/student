@@ -11,6 +11,7 @@ import ErrorMessage from "../../../Components/Common/ErrorMessage";
 import SuccessMessage from "../../../Components/Common/SuccessMessage";
 import LoadingSpinner from "../../../Components/Common/LoadingSpinner";
 import { DataSheetSkeleton } from "../../LoadingPage";
+import { useParams } from "react-router-dom";
 
 const StudentManagement = () => {
   const dispatch = useDispatch();
@@ -18,6 +19,7 @@ const StudentManagement = () => {
   const { user } = useSelector((state) => state.auth);
   const [successMessage, setSuccessMessage] = useState("");
   const [localError, setLocalError] = useState("");
+  const { view } = useParams();
 
   useEffect(() => {
     if (user && students.length === 0) {
@@ -77,7 +79,6 @@ const StudentManagement = () => {
   if (status === "loading" && students.length === 0) {
     return <DataSheetSkeleton />;
   }
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       {/* Error Message */}
@@ -98,6 +99,7 @@ const StudentManagement = () => {
         students={students.data}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        view={view}
       />
 
       {/* Loading indicator when performing actions */}
