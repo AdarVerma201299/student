@@ -118,6 +118,7 @@ module.exports = {
         totalPaid: student.totalPaid || 0,
         overallBalance: student.overallBalance || 0,
       }));
+      // console.log(finalData);
       res.status(200).json({
         success: true,
         count: finalData.length,
@@ -191,6 +192,7 @@ module.exports = {
                         receiptNumber: 1,
                         verified: 1,
                         academicYear: 1,
+                        status: 1,
                       },
                     },
                   ],
@@ -261,14 +263,11 @@ module.exports = {
       }
 
       const studentData = result[0];
-
-      // Ensure all array fields exist even if empty
       const finalData = {
         ...studentData,
         feeRecords: studentData.feeRecords || [],
         paymentHistory: studentData.paymentHistory || [],
       };
-      console.log("qweq:", finalData);
       res.status(200).json({
         status: "success",
         data: finalData,
@@ -414,158 +413,21 @@ module.exports = {
         .json({ error: "Server error while fetching shift fee summary" });
     }
   },
-  // makePayment: async (req, res) => {
-  //   const session = await mongoose.startSession();
-  //   session.startTransaction();
-  //   try {
-  //     const { amount, method, transactionId, academicYear, notes } = req.body;
-  //     const { studentId } = req.query;
-  //     const payerRole = req.user.role;
-  //     console.log(
-  //       "req.body:",
-  //       req.body,
-  //       "req.query:",
-  //       req.query,
-  //       "req.user.role:",
-  //       req.user.role
-  //     );
-  //     // 1. Validate Payment Data
-  //     if (!amount || !method) {
-  //       return res.status(400).json({
-  //         success: false,
-  //         error: "Amount and payment method are required",
-  //       });
-  //     }
 
-  //     // 2. Validate Student Status
-  //     const student = await User.findById(studentId).session(session);
-  //     if (!student || student.role !== "student") {
-  //       await session.abortTransaction();
-  //       return res.status(404).json({
-  //         success: false,
-  //         error: "Student not found",
-  //       });
-  //     }
-
-  //     // 3. Role-based permissions
-  //     if (studentId && !["admin", "sub-admin"].includes(payerRole)) {
-  //       await session.abortTransaction();
-  //       return res.status(403).json({
-  //         success: false,
-  //         error: "Unauthorized to make payments for other students",
-  //       });
-  //     }
-
-  //     // 4. Get/Create Shift Fee Record
-  //     const year = academicYear || getCurrentAcademicYear();
-  //     let shiftFee = await ShiftFee.findOne({
-  //       student: studentId,
-  //       academicYear: year,
-  //     }).session(session);
-  //     if (shiftFee && shiftFee.payments.length >= 12) {
-  //       await session.abortTransaction();
-  //       return res.status(400).json({
-  //         success: false,
-  //         error:
-  //           "Maximum of 12 payments already reached for this academic year",
-  //       });
-  //     }
-  //     // 5. Create payment record with role-specific data
-  //     const paymentData = {
-  //       student: studentId,
-  //       shiftFee: shiftFee._id,
-  //       amount,
-  //       method,
-  //       transactionId,
-  //       academicYear: shiftFee.academicYear,
-  //       notes,
-  //       payerRole,
-  //       status: "pending",
-  //       verifiedBy: ["admin", "sub-admin"].includes(payerRole)
-  //         ? req.user.id
-  //         : null,
-  //       paymentSource:
-  //         payerRole === "student" ? "student-portal" : "admin-portal",
-  //     };
-  //     const payment = await Payment.create([paymentData], { session });
-  //     console.log(paymentData);
-  //     // 6. Update shift fee
-  //     // shiftFee.payments.push(payment[0]._id);
-  //     // await shiftFee.save({ session });
-
-  //     // 7. Payment verification (simplified for example)
-  //     if (["admin", "sub-admin"].includes(payerRole)) {
-  //       payment[0].status = "verified";
-  //       await payment[0].save({ session });
-  //     }
-
-  //     // 8. Calculate balance
-  //     const balance =
-  //       shiftFee.fee - (await calculateTotalPaid(shiftFee._id, session));
-
-  //     // 9. Create audit log
-  //     await createAuditLog({
-  //       action: "payment",
-  //       model: "Payment",
-  //       documentId: payment[0]._id,
-  //       changedBy: req.user.id,
-  //       changes: paymentData,
-  //       ipAddress: req.ip,
-  //       userAgent: req.headers["user-agent"],
-  //     });
-
-  //     // 10. Commit transaction
-  //     await session.commitTransaction();
-
-  //     // 11. Send notifications
-  //     // if (payerRole !== "student") {
-  //     //   // await sendPaymentNotification(student.email, payment[0]._id);
-  //     // }
-
-  //     res.status(201).json({
-  //       success: true,
-  //       data: {
-  //         paymentId: payment[0]._id,
-  //         amountPaid: amount,
-  //         currentBalance: balance,
-  //         receiptUrl: `/receipts/${payment[0]._id}`,
-  //         status: payment[0].status,
-  //         payerRole,
-  //       },
-  //     });
-  //   } catch (error) {
-  //     await session.abortTransaction();
-  //     console.error("Payment error:", error);
-
-  //     const statusCode = error.name === "ValidationError" ? 400 : 500;
-  //     res.status(statusCode).json({
-  //       success: false,
-  //       error: error.message || "Payment processing failed",
-  //     });
-  //   } finally {
-  //     session.endSession();
-  //   }
-  // },
   makePayment: async (req, res) => {
     const session = await mongoose.startSession();
-    let transactionCompleted = false;
+    let transactionAborted = false;
 
     try {
       await session.withTransaction(async () => {
-        // 1. Get request data
         const { amount, method, transactionId, academicYear, notes } = req.body;
         const { studentId } = req.query;
         const payerRole = req.user.role;
 
-        // 2. Validate required fields
         if (!amount || !method) {
           throw new Error("Amount and payment method are required");
         }
-
-        // 3. Get academic year
         const year = academicYear || getCurrentAcademicYear();
-
-        // 4. Find shift fee record
         const shiftFee = await ShiftFee.findOne({
           student: studentId,
           academicYear: year,
@@ -574,13 +436,9 @@ module.exports = {
         if (!shiftFee) {
           throw new Error("Shift fee record not found");
         }
-
-        // 5. Validate payment limit
         if (shiftFee.payments && shiftFee.payments.length >= 12) {
           throw new Error("Maximum of 12 payments already reached");
         }
-
-        // 6. Create payment record
         const payment = await Payment.create(
           [
             {
@@ -596,7 +454,7 @@ module.exports = {
                 ? "verified"
                 : "pending",
               verifiedBy: ["admin", "sub-admin"].includes(payerRole)
-                ? req.user.id
+                ? req.user.userId
                 : null,
               paymentSource:
                 payerRole === "student" ? "student-portal" : "admin-portal",
@@ -604,69 +462,23 @@ module.exports = {
           ],
           { session }
         );
-
-        // 7. Update shift fee with atomic operation
-        const updatedShiftFee = await ShiftFee.findOneAndUpdate(
-          {
-            _id: shiftFee._id,
-            payments: {
-              $size: shiftFee.payments ? shiftFee.payments.length : 0,
-            },
-          },
-          {
-            $push: { payments: payment[0]._id },
-          },
-          {
-            new: true,
-            session,
-          }
-        );
-
-        if (!updatedShiftFee) {
-          throw new Error("Payment conflict occurred - please try again");
-        }
-
-        // 8. Calculate balance
         const totalPaid = await calculateTotalPaid(shiftFee._id, session);
         const balance = parseFloat(shiftFee.fee) - parseFloat(totalPaid);
-
-        // 9. Create audit log
-        await AuditLog.create(
-          [
-            {
-              action: "payment",
-              model: "Payment",
-              documentId: payment[0]._id,
-              changedBy: req.user.id,
-              changes: {
-                amount: payment[0].amount,
-                method: payment[0].method,
-                transactionId: payment[0].transactionId,
-              },
-              ipAddress: req.ip,
-              userAgent: req.headers["user-agent"],
-            },
-          ],
-          { session }
-        );
-
-        transactionCompleted = true;
-      });
-
-      // Only reach here if transaction succeeded
-      res.status(201).json({
-        success: true,
-        data: {
-          paymentId: payment[0]._id,
-          amountPaid: payment[0].amount,
-          currentBalance: balance,
-          receiptUrl: `/receipts/${payment[0]._id}`,
-          status: payment[0].status,
-          payerRole,
-        },
+        res.status(201).json({
+          success: true,
+          data: {
+            paymentId: payment[0]._id,
+            amountPaid: payment[0].amount,
+            currentBalance: balance,
+            receiptUrl: `/receipts/${payment[0]._id}`,
+            status: payment[0].status,
+            payerRole,
+          },
+        });
       });
     } catch (error) {
-      if (!transactionCompleted && session.inTransaction()) {
+      if (!transactionAborted && session.inTransaction()) {
+        transactionAborted = true;
         await session.abortTransaction();
       }
 

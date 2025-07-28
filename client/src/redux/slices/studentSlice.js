@@ -27,9 +27,10 @@ const studentSlice = createSlice({
   initialState,
   reducers: {
     fetchStudentSuccess: (state, { payload }) => {
+      console.log(payload);
       state.studentData = payload.studentData;
       state.feeRecords = payload.feeRecords || [];
-      state.paymentHistory = payload.payments || [];
+      state.paymentHistory = payload.paymentHistory || [];
       state.lastPaymentDate = calculateLastPaymentDate(state.paymentHistory);
       state.pendingMonths = calculatePendingMonths(
         payload.studentData?.createdAt,
@@ -44,9 +45,7 @@ const studentSlice = createSlice({
     resetStudentState: () => initialState,
   },
   extraReducers: (builder) => {
-    // Single builder chain for all cases
     builder
-      // Payment Processing
       .addCase(processStudentPayment.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -66,7 +65,6 @@ const studentSlice = createSlice({
         state.error = payload;
       })
 
-      // Fetch Student Data
       .addCase(fetchStudentData.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -74,7 +72,7 @@ const studentSlice = createSlice({
       .addCase(fetchStudentData.fulfilled, (state, { payload }) => {
         state.studentData = payload;
         state.feeRecords = payload.feeRecords || [];
-        state.paymentHistory = payload.payments || [];
+        state.paymentHistory = payload.paymentHistory || [];
         state.lastPaymentDate = calculateLastPaymentDate(state.paymentHistory);
         state.pendingMonths = calculatePendingMonths(
           payload.createdAt,
@@ -130,7 +128,7 @@ const studentSlice = createSlice({
       })
       .addCase(createPayment.fulfilled, (state, { payload }) => {
         state.loading = false;
-        state.paymentHistory = [...(state.paymentHistory || []), payload];
+        state.paymentHistory = [...(state.paymentHistory || []), payload?.data];
       })
       .addCase(createPayment.rejected, (state, { payload }) => {
         state.loading = false;

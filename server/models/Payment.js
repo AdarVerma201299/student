@@ -57,7 +57,7 @@ const paymentSchema = new Schema(
       type: String,
       validate: {
         validator: function (id) {
-          if (!id) return true; // Optional
+          if (!id) return true;
           return validator.isAlphanumeric(id) && id.length >= 6;
         },
         message:
@@ -75,7 +75,7 @@ const paymentSchema = new Schema(
       validate: {
         validator: async function (userId) {
           if (!userId) return true;
-          const user = await mongoose.model("User").findById(userId);
+          const user = await User.findById(userId);
           return user && ["admin", "sub-admin"].includes(user.role);
         },
         message: "Verifier must be an admin or sub-admin",
@@ -122,12 +122,10 @@ const paymentSchema = new Schema(
   }
 );
 
-// Indexes for performance
 paymentSchema.index({ student: 1, academicYear: 1 });
 paymentSchema.index({ status: 1, date: -1 });
 paymentSchema.index({ receiptNumber: 1 }, { unique: true });
 
-// Virtuals
 paymentSchema.virtual("formattedDate").get(function () {
   return this.date.toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -180,22 +178,53 @@ paymentSchema.pre("validate", async function (next) {
   }
   next();
 });
-// Post-save hook to update related ShiftFee
+
 paymentSchema.post("save", async function (doc, next) {
+  const session = this.$session();
+
   try {
-    await mongoose
-      .model("ShiftFee")
-      .updateOne(
-        { _id: doc.shiftFee },
-        { $push: { payments: doc._id }, $inc: { paidAmount: doc.amount } }
-      );
+    const shiftFeeUpdate = await mongoose.model("ShiftFee").updateOne(
+      { _id: doc.shiftFee },
+      {
+        $push: { payments: doc._id },
+        $inc: { paidAmount: doc.amount },
+      },
+      { session }
+    );
+
+    if (shiftFeeUpdate.nModified === 0) {
+      throw new Error("Failed to update ShiftFee record");
+    }
+
+    await mongoose.model("AuditLog").create(
+      [
+        {
+          action: "create",
+          model: "Payment",
+          documentId: doc._id,
+          changedBy: doc.verifiedBy,
+          changes: {
+            amount: doc.amount,
+            method: doc.method,
+            status: doc.status,
+            receiptNumber: doc.receiptNumber,
+          },
+          ipAddress: doc.paymentSource === "admin-portal" ? "server" : "client",
+          userAgent: doc.paymentSource,
+        },
+      ],
+      { session }
+    );
+
     next();
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    if (!session) {
+      console.error("Post-save hook error:", error);
+    }
+    next(error);
   }
 });
 
-// Static methods
 paymentSchema.statics.generateReceiptNumber = async function () {
   const lastPayment = await this.findOne({}, {}, { sort: { createdAt: -1 } });
   const lastNumber = lastPayment
@@ -203,5 +232,36 @@ paymentSchema.statics.generateReceiptNumber = async function () {
     : 0;
   return `REC-${(lastNumber + 1).toString().padStart(6, "0")}`;
 };
+paymentSchema.statics.bulkCreateWithAudit = async function (payments, userId) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
+  try {
+    const createdPayments = await this.create(payments, { session });
+
+    // Create batch audit log
+    await mongoose.model("AuditLog").create(
+      createdPayments.map((payment) => ({
+        action: "create",
+        model: "Payment",
+        documentId: payment._id,
+        changedBy: userId,
+        changes: {
+          amount: payment.amount,
+          receiptNumber: payment.receiptNumber,
+        },
+        ipAddress: "batch-process",
+      })),
+      { session }
+    );
+
+    await session.commitTransaction();
+    return createdPayments;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
 module.exports = mongoose.model("Payment", paymentSchema);

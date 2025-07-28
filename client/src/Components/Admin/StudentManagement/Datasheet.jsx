@@ -91,7 +91,7 @@ const DataSheet = ({ students = [], onEdit, onDelete }) => {
                     fetchStudentSuccess({
                       studentData: student,
                       feeRecords: student.feeRecords || [],
-                      paymentHistory: student.payments || [],
+                      paymentHistory: student.paymentHistory || [],
                     })
                   );
                   navigate(`/profile/${student._id}`, { state: { student } });

@@ -18,7 +18,7 @@ export const createPayment = createAsyncThunk(
           params: { studentId },
         }
       );
-
+      console.log(response);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);

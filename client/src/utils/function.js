@@ -7,7 +7,7 @@ export const LogoutHandler = (dispatch, navigate) => () => {
   dispatch(resetStudentState());
   dispatch(resetAdminStudentState());
   localStorage.clear();
-    navigate("/"); // or your preferred redirect path
+  navigate("/"); // or your preferred redirect path
 };
 export const Datehandle = (GivenDate) => {
   const dateObj = new Date(GivenDate);
